@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Screening AI System</title>
+    <style>
+        /* CSS Reset (Normalize.css would be even better) */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background-color: #45a049;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .navbar {
+            display: flex;
+        }
+
+        .navbar a {
+            color: white;
+            padding: 0.5rem 1rem;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .navbar a:hover {
+            color: black;
+        }
+
+        main {
+            padding: 1rem;
+        }
+
+        h1 {
+            text-align: center;
+            color: #45a049;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        input[type="file"] {
+            margin-bottom: 1rem;
+        }
+
+        input[type="submit"] {
+            padding: 0.75rem 1.5rem;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+
+        .result-section {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #e9ecef;
+            border-radius: 0.25rem;
+        }
+
+        .result-section h3 {
+            text-align: center;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .result-section p,
+        .result-section ul {
+            text-align: center;
+        }
+
+        .result-section ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        /* Hide all pages initially */
+        .page {
+            display: none;
+        }
+
+        /* Show the active page */
+        .page.active {
+            display: block;
+        }
+
+        /* Loading Indicator (Hidden by default) */
+        #loading-indicator {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        /* Error Message Styling */
+        .error-message {
+            color: red;
+            text-align: center;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="logo">Resume AI</div>
+        <nav class="navbar">
+            <a href="#" data-page="categorization">Categorization</a>
+            <a href="#" data-page="parsing">Parsing</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page" id="categorization-page">
+            <div class="container" id="categorization">
+                <h1>JOB CATEGORIZATION</h1>
+                <h2>Upload Your Resume for Categorization</h2>
+                <form action="/pred" method="post" enctype="multipart/form-data" id="categorization-form">
+                    <input type="file" name="resume" accept=".pdf, .txt" required>
+                    <input type="submit" value="Submit">
+                </form>
+                <div id="loading-indicator">Processing...</div>
+                <div id="categorization-results" class="result-section">
+                    </div>
+                <div id="categorization-error" class="error-message"></div>
+            </div>
+        </section>
+
+
+        <section class="page" id="parsing-page">
+            <div class="container" id="parsing">
+                <h1>RESUME INFO EXTRACTION</h1>
+                <h2>Upload Your Resume for Information Extraction</h2>
+                <form action="/pred" method="post" enctype="multipart/form-data" id="parsing-form">
+                    <input type="file" name="resume" accept=".pdf, .txt" required>
+                    <input type="submit" value="Submit">
+                </form>
+                <div id="loading-indicator">Processing...</div>
+                <div id="parsing-results" class="result-section">
+                    </div>
+                <div id="parsing-error" class="error-message"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Function to show a specific page
+        function showPage(pageId) {
+            // Hide all pages
+            let pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.classList.remove('active'));
+
+            // Show the selected page
+            document.getElementById(pageId + '-page').classList.add('active');
+        }
+
+        // Event listener for navigation links
+        document.querySelectorAll('.navbar a').forEach(link => {
+            link.addEventListener('click', function(event) {
+                event.preventDefault(); // Prevent default link behavior
+                const pageId = this.dataset.page;
+                showPage(pageId);
+            });
+        });
+
+        // Show the categorization page by default
+        showPage('categorization');
+
+        // --- Fetch API Form Submission ---
+        async function submitForm(formId, resultsDivId, errorDivId) {
+            const form = document.getElementById(formId);
+            const resultsDiv = document.getElementById(resultsDivId);
+            const errorDiv = document.getElementById(errorDivId);
+            const loadingIndicator = document.getElementById('loading-indicator');
+
+            // Clear previous results and errors
+            resultsDiv.innerHTML = '';
+            errorDiv.innerHTML = '';
+
+            // Show loading indicator
+            loadingIndicator.style.display = 'block';
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/pred', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.text(); // Or response.json() if you return JSON from Flask
+
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
+
+                // Display results (Adapt this based on your Flask response)
+                resultsDiv.innerHTML = data;  //  This assumes your Flask returns HTML. Adapt as needed.
+
+            } catch (error) {
+                console.error('Error:', error);
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
+                errorDiv.innerHTML = `An error occurred: ${error.message}`;
+            }
+        }
+
+        // Attach event listeners to forms
+        document.getElementById('categorization-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            submitForm('categorization-form', 'categorization-results', 'categorization-error');
+        });
+
+        
+        document.getElementById('parsing-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            submitForm('parsing-form', 'parsing-results', 'parsing-error');
+        });
+    </script>
+
+</body>
+
+</html>
